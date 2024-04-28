@@ -10,6 +10,7 @@ using System.IO;
 using GetStartedApp;
 using Avalonia;
 using System.IO.Pipes;
+using System.Collections.Generic;
 // using Avalonia.Remote.Protocol.Input;
 namespace GetStartedApp.Views;
 
@@ -105,11 +106,11 @@ public partial class MainWindow : Window
             
             MoveExtent(currentMousePosition);
 
-            _canvas.Children.Clear();
-            foreach (var (_,tile) in _tilesCache)
-            {
-                DrawTile(tile.bitmap, tile.x, tile.y, zoomLevel);
-            }
+        }
+        _canvas.Children.Clear();
+        foreach (var (_, tile) in _tilesCache)
+        {
+            DrawTile(tile.bitmap, tile.x, tile.y, zoomLevel);
         }
     }
     private void MapViewerWindow_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -154,6 +155,7 @@ public partial class MainWindow : Window
     private async Task LoadTiles(int left, int top, double right, int bottom, int zoomLevel)
     {
         loading = true;
+        List<Task> drawTasks = new List<Task>();
         for (int y = top; y <= bottom && !isCanceled; y++) // Adjust the step size according to your needs
         {
             for (int x = left; x <= right && !isCanceled; x++) // Adjust the step size according to your needs
@@ -170,10 +172,10 @@ public partial class MainWindow : Window
                     Bitmap bmp = await DownloadTileAsync(x, y, zoomLevel);
                     _tilesCache.Add(tileKey, new Tile{x = x, y = y, bitmap=bmp});
                     // SaveTileToLocalAsync(bmp, x, y, zoomLevel);
-                    PipeStream ps;
                 }
                 // Draw tile on canvas
-                DrawTile(_tilesCache[tileKey].bitmap, x, y, zoomLevel);
+//                DrawTile(_tilesCache[tileKey].bitmap, x, y, zoomLevel);
+                drawTasks.Add(Task.Run(() => DrawTile(_tilesCache[tileKey].bitmap, x, y, zoomLevel)));
             }
         }
         loading = false;
@@ -204,7 +206,7 @@ public partial class MainWindow : Window
         }
     }
     
-    private void DrawTile(Bitmap tile, int x, int y, int zoom)
+    private async Task DrawTile(Bitmap tile, int x, int y, int zoom)
     {
         // 计算瓦片在Canvas上的位置
         // double canvasX = x * Tile.tileSize;
